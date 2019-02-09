@@ -2,12 +2,15 @@ package simpledb
 
 import "github.com/tchajed/go-simple-db/filesys"
 
+// Note that this code does not initialize the filesystem, because it happens
+// outside of the Coq model (the lower-level layer is implicitly initialized)
+//
+// However, when this code runs of course something has to initialize the
+// filesystem.
+//
+// TODO: this doesn't go through a pointer so initializing filesys.Fs later
+// won't actually initialize this layer
 var fs filesys.Filesys = filesys.Fs
-
-// Init initializes the global filesystem layer.
-func Init() {
-	filesys.Init()
-}
 
 // A Table provides access to an immutable copy of data on the filesystem, along
 // with an index for fast random access.
