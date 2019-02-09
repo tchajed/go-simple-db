@@ -1,5 +1,7 @@
 # Simple DB
 
+[![Build Status](https://travis-ci.org/tchajed/go-simple-db.svg?branch=master)](https://travis-ci.org/tchajed/go-simple-db)
+
 A key-value store that is:
 - single-table
 - concurrent
