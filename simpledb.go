@@ -1,4 +1,4 @@
-package simpleb
+package simpledb
 
 import "github.com/tchajed/go-simple-db/filesys"
 
