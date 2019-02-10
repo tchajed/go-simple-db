@@ -1,5 +1,6 @@
 package simpledb
 
+import "github.com/tchajed/go-simple-db/machine"
 import "github.com/tchajed/go-simple-db/filesys"
 
 // Note that this code does not initialize the filesystem, because it happens
@@ -26,6 +27,71 @@ func CreateTable(p string) Table {
 	fs.Close(f)
 	f2 := fs.Open(p)
 	return Table{Index: index, File: f2}
+}
+
+// Entry represents a (key, value) pair.
+type Entry struct {
+	Key uint64
+	Value []byte
+}
+
+// DecodeUInt64 is a Decoder(uint64)
+//
+// All decoders have the shape func(p Bytes) (T, uint64)
+//
+// The uint64 represents the number of bytes consumed; if 0, then decoding
+// failed, and the value of type T should be ignored.
+func DecodeUInt64(p machine.Bytes) (uint64, uint64) {
+	if len(p) < 8 {
+		return 0, 0
+	}
+	return machine.UInt64Get(p), 8
+}
+
+// DecodeEntry is a Decoder(Entry)
+func DecodeEntry(data machine.Bytes) (Entry, uint64) {
+	key, l1 := DecodeUInt64(data)
+	if l1 == 0 {
+		return Entry{Key: 0, Value: nil}, 0
+	}
+	valueLen, l2 := DecodeUInt64(data[l1:])
+	if l2 == 0 {
+		return Entry{Key: 0, Value: nil}, 0
+	}
+	value := data[l1+l2:l1+l2+valueLen]
+	return Entry{Key: key, Value: value}, l1+l2+valueLen
+}
+
+func readTableIndex(f filesys.File, index map[uint64]uint64) {
+	off := new(uint64)
+	bs := new(machine.Bytes)
+	for {
+		currBs := *bs
+		currOff := *off
+		e, l := DecodeEntry(currBs)
+		if l > 0 {
+			index[e.Key] = 8+currOff
+			*off = currOff + l
+			*bs = currBs[l:]
+			continue
+		} else {
+			newBs := fs.ReadAt(f, currOff, 4096)
+			if len(newBs) == 0 {
+				break
+			} else {
+				*bs = append(currBs, newBs...)
+				continue
+			}
+		}
+	}
+}
+
+// RecoverTable restores a table from disk on startup.
+func RecoverTable(p string) Table {
+	index := make(map[uint64]uint64)
+	f := fs.Open(p)
+	readTableIndex(f, index)
+	return Table{Index: index, File: f}
 }
 
 // CloseTable frees up the fd held by a table.
