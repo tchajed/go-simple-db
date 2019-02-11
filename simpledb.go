@@ -31,17 +31,17 @@ func CreateTable(p string) Table {
 
 // Entry represents a (key, value) pair.
 type Entry struct {
-	Key uint64
+	Key   uint64
 	Value []byte
 }
 
 // DecodeUInt64 is a Decoder(uint64)
 //
-// All decoders have the shape func(p Bytes) (T, uint64)
+// All decoders have the shape func(p []byte) (T, uint64)
 //
 // The uint64 represents the number of bytes consumed; if 0, then decoding
 // failed, and the value of type T should be ignored.
-func DecodeUInt64(p machine.Bytes) (uint64, uint64) {
+func DecodeUInt64(p []byte) (uint64, uint64) {
 	if len(p) < 8 {
 		return 0, 0
 	}
@@ -49,7 +49,7 @@ func DecodeUInt64(p machine.Bytes) (uint64, uint64) {
 }
 
 // DecodeEntry is a Decoder(Entry)
-func DecodeEntry(data machine.Bytes) (Entry, uint64) {
+func DecodeEntry(data []byte) (Entry, uint64) {
 	key, l1 := DecodeUInt64(data)
 	if l1 == 0 {
 		return Entry{Key: 0, Value: nil}, 0
@@ -58,28 +58,32 @@ func DecodeEntry(data machine.Bytes) (Entry, uint64) {
 	if l2 == 0 {
 		return Entry{Key: 0, Value: nil}, 0
 	}
-	value := data[l1+l2:l1+l2+valueLen]
-	return Entry{Key: key, Value: value}, l1+l2+valueLen
+	value := data[l1+l2 : l1+l2+valueLen]
+	return Entry{Key: key, Value: value}, l1 + l2 + valueLen
 }
 
+type lazyFileBuf struct {
+	offset uint64
+	next   []byte
+}
+
+// readTableIndex parses a complete table on disk into a key->offset index
 func readTableIndex(f filesys.File, index map[uint64]uint64) {
-	off := new(uint64)
-	bs := new(machine.Bytes)
-	for {
-		currBs := *bs
-		currOff := *off
-		e, l := DecodeEntry(currBs)
+	for buf := (lazyFileBuf{offset: 0, next: nil}); ; {
+		e, l := DecodeEntry(buf.next)
 		if l > 0 {
-			index[e.Key] = 8+currOff
-			*off = currOff + l
-			*bs = currBs[l:]
+			index[e.Key] = 8 + buf.offset
+			buf = lazyFileBuf{offset: buf.offset + 1, next: buf.next[l:]}
 			continue
 		} else {
-			newBs := fs.ReadAt(f, currOff, 4096)
-			if len(newBs) == 0 {
+			p := fs.ReadAt(f, buf.offset, 4096)
+			if len(p) == 0 {
 				break
 			} else {
-				*bs = append(currBs, newBs...)
+				buf = lazyFileBuf{
+					offset: buf.offset,
+					next:   append(buf.next, p...),
+				}
 				continue
 			}
 		}
