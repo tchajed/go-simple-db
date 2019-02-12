@@ -69,6 +69,7 @@ type lazyFileBuf struct {
 }
 
 // readTableIndex parses a complete table on disk into a key->offset index
+/*
 func readTableIndex(f filesys.File, index map[uint64]uint64) {
 	for buf := (lazyFileBuf{offset: 0, next: nil}); ; {
 		e, l := DecodeEntry(buf.next)
@@ -89,6 +90,11 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 			}
 		}
 	}
+}
+*/
+
+// readTableIndex placeholder
+func readTableIndex(f filesys.File, index map[uint64]uint64) {
 }
 
 // RecoverTable restores a table from disk on startup.
