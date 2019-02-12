@@ -45,7 +45,8 @@ func DecodeUInt64(p []byte) (uint64, uint64) {
 	if len(p) < 8 {
 		return 0, 0
 	}
-	return machine.UInt64Get(p), 8
+	n := machine.UInt64Get(p)
+	return n, 8
 }
 
 // DecodeEntry is a Decoder(Entry)
