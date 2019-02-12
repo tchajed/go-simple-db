@@ -60,8 +60,10 @@ func DecodeEntry(data []byte) (Entry, uint64) {
 		if l2 == 0 {
 			return Entry{Key: 0, Value: nil}, 0
 		} else {
-			value := data[l1+l2 : l1+l2+valueLen]
-			return Entry{Key: key, Value: value}, l1 + l2 + valueLen
+			return Entry{
+				Key:   key,
+				Value: data[l1+l2 : l1+l2+valueLen],
+			}, l1 + l2 + valueLen
 		}
 	}
 }
