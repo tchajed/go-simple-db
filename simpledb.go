@@ -1,7 +1,7 @@
 package simpledb
 
-import "github.com/tchajed/go-simple-db/machine"
-import "github.com/tchajed/go-simple-db/filesys"
+import "github.com/tchajed/goose/machine"
+import "github.com/tchajed/goose/machine/filesys"
 
 // Note that this code does not initialize the filesystem, because it happens
 // outside of the Coq model (the lower-level layer is implicitly initialized)
