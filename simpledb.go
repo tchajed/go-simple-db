@@ -44,9 +44,10 @@ type Entry struct {
 func DecodeUInt64(p []byte) (uint64, uint64) {
 	if len(p) < 8 {
 		return 0, 0
+	} else {
+		n := machine.UInt64Get(p)
+		return n, 8
 	}
-	n := machine.UInt64Get(p)
-	return n, 8
 }
 
 // DecodeEntry is a Decoder(Entry)
@@ -54,13 +55,15 @@ func DecodeEntry(data []byte) (Entry, uint64) {
 	key, l1 := DecodeUInt64(data)
 	if l1 == 0 {
 		return Entry{Key: 0, Value: nil}, 0
+	} else {
+		valueLen, l2 := DecodeUInt64(data[l1:])
+		if l2 == 0 {
+			return Entry{Key: 0, Value: nil}, 0
+		} else {
+			value := data[l1+l2 : l1+l2+valueLen]
+			return Entry{Key: key, Value: value}, l1 + l2 + valueLen
+		}
 	}
-	valueLen, l2 := DecodeUInt64(data[l1:])
-	if l2 == 0 {
-		return Entry{Key: 0, Value: nil}, 0
-	}
-	value := data[l1+l2 : l1+l2+valueLen]
-	return Entry{Key: key, Value: value}, l1 + l2 + valueLen
 }
 
 type lazyFileBuf struct {
