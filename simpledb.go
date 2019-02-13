@@ -55,17 +55,15 @@ func DecodeEntry(data []byte) (Entry, uint64) {
 	key, l1 := DecodeUInt64(data)
 	if l1 == 0 {
 		return Entry{Key: 0, Value: nil}, 0
-	} else {
-		valueLen, l2 := DecodeUInt64(data[l1:])
-		if l2 == 0 {
-			return Entry{Key: 0, Value: nil}, 0
-		} else {
-			return Entry{
-				Key:   key,
-				Value: data[l1+l2 : l1+l2+valueLen],
-			}, l1 + l2 + valueLen
-		}
 	}
+	valueLen, l2 := DecodeUInt64(data[l1:])
+	if l2 == 0 {
+		return Entry{Key: 0, Value: nil}, 0
+	}
+	return Entry{
+		Key:   key,
+		Value: data[l1+l2 : l1+l2+valueLen],
+	}, l1 + l2 + valueLen
 }
 
 type lazyFileBuf struct {
