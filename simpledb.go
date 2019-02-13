@@ -85,9 +85,10 @@ func readTableIndex(f filesys.File, index map[uint64]uint64) {
 			if len(p) == 0 {
 				break
 			} else {
+				newBuf := append(buf.next, p...)
 				buf = lazyFileBuf{
 					offset: buf.offset,
-					next:   append(buf.next, p...),
+					next:   newBuf,
 				}
 				continue
 			}
