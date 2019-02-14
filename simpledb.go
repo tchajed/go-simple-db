@@ -107,3 +107,15 @@ func RecoverTable(p string) Table {
 func CloseTable(t Table) {
 	fs.Close(t.File)
 }
+
+func ReadValue(f filesys.File, off uint64) []byte {
+	buf := fs.ReadAt(f, off, 4096)
+	totalBytes := machine.UInt64Get(buf)
+	haveBytes := uint64(len(buf[8:]))
+	if haveBytes < totalBytes {
+		buf2 := fs.ReadAt(f, off+4096, totalBytes-haveBytes)
+		newBuf := append(buf, buf2...)
+		return newBuf
+	}
+	return buf
+}
