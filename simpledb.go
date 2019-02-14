@@ -7,11 +7,9 @@ import "github.com/tchajed/goose/machine/filesys"
 // outside of the Coq model (the lower-level layer is implicitly initialized)
 //
 // However, when this code runs of course something has to initialize the
-// filesystem.
-//
-// TODO: this doesn't go through a pointer so initializing filesys.Fs later
-// won't actually initialize this layer
-var fs filesys.Filesys = filesys.Fs
+// filesystem, either with filesys.Init() for the default initialization,
+// or by explicitly setting filesys.Fs.
+var fs = filesys.Fs
 
 // A Table provides access to an immutable copy of data on the filesystem, along
 // with an index for fast random access.
