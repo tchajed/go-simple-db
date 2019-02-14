@@ -126,3 +126,19 @@ func TableRead(t Table, k uint64) []byte {
 	p := ReadValue(t.File, off)
 	return p
 }
+
+type bufFile struct {
+	File    filesys.File
+	buf     *[]byte
+	bufSize *uint64
+}
+
+func newBuf(f filesys.File) bufFile {
+	buf := new([]byte)
+	bufSize := new(uint64)
+	return bufFile{
+		File:    f,
+		buf:     buf,
+		bufSize: bufSize,
+	}
+}
