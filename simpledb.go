@@ -119,3 +119,12 @@ func ReadValue(f filesys.File, off uint64) []byte {
 	}
 	return buf
 }
+
+func TableRead(t Table, k uint64) []byte {
+	off, ok := t.Index[k]
+	if !ok {
+		return nil
+	}
+	p := ReadValue(t.File, off)
+	return p
+}
