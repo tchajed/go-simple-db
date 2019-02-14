@@ -128,17 +128,34 @@ func TableRead(t Table, k uint64) []byte {
 }
 
 type bufFile struct {
-	File    filesys.File
-	buf     *[]byte
-	bufSize *uint64
+	file filesys.File
+	buf  *[]byte
 }
 
 func newBuf(f filesys.File) bufFile {
 	buf := new([]byte)
-	bufSize := new(uint64)
 	return bufFile{
-		File:    f,
-		buf:     buf,
-		bufSize: bufSize,
+		file: f,
+		buf:  buf,
 	}
+}
+
+func bufFlush(f bufFile) {
+	buf := *f.buf
+	if len(buf) == 0 {
+		return
+	}
+	fs.Append(f.file, buf)
+	*f.buf = nil
+}
+
+func bufAppend(f bufFile, p []byte) {
+	buf := *f.buf
+	buf2 := append(buf, p...)
+	*f.buf = buf2
+}
+
+func bufClose(f bufFile) {
+	bufFlush(f)
+	fs.Close(f.file)
 }
