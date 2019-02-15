@@ -233,3 +233,33 @@ type Database struct {
 	// protects constructing shadow tables
 	compactionL *sync.RWMutex
 }
+
+func makeValueBuffer() *map[uint64][]byte {
+	buf := make(map[uint64][]byte)
+	bufPtr := new(map[uint64][]byte)
+	*bufPtr = buf
+	return bufPtr
+}
+
+func NewDb() Database {
+	wbuf := makeValueBuffer()
+	rbuf := makeValueBuffer()
+	bufferL := new(sync.RWMutex)
+	tableName := "table.0"
+	tableNameRef := new(string)
+	*tableNameRef = tableName
+	table := CreateTable(tableName)
+	tableRef := new(Table)
+	*tableRef = table
+	tableL := new(sync.RWMutex)
+	compactionL := new(sync.RWMutex)
+	return Database{
+		wbuffer:     wbuf,
+		rbuffer:     rbuf,
+		bufferL:     bufferL,
+		table:       tableRef,
+		tableName:   tableNameRef,
+		tableL:      tableL,
+		compactionL: compactionL,
+	}
+}
