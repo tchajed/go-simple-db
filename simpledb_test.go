@@ -39,15 +39,32 @@ func (s *SimpleDbSuite) TestBufFile(c *C) {
 	c.Check(readFile("test"), DeepEquals, []byte("hello world!"))
 }
 
+type readValue struct {
+	value   []byte
+	present bool
+}
+
+func tableRead(t Table, k uint64) readValue {
+	v, ok := TableRead(t, k)
+	return readValue{value: v, present: ok}
+}
+
+func present(v string) readValue {
+	return readValue{
+		value:   []byte(v),
+		present: true,
+	}
+}
+
 func (s *SimpleDbSuite) TestTableWriter(c *C) {
 	w := newTableWriter("table")
 	tablePut(w, 1, []byte("v1"))
 	tablePut(w, 10, []byte("value ten"))
 	tablePut(w, 2, []byte("v two"))
 	t := tableWriterClose(w)
-	c.Check(TableRead(t, 1), DeepEquals, []byte("v1"))
-	c.Check(TableRead(t, 2), DeepEquals, []byte("v two"))
-	c.Check(TableRead(t, 10), DeepEquals, []byte("value ten"))
+	c.Check(tableRead(t, 1), DeepEquals, present("v1"))
+	c.Check(tableRead(t, 2), DeepEquals, present("v two"))
+	c.Check(tableRead(t, 10), DeepEquals, present("value ten"))
 }
 
 func (s *SimpleDbSuite) TestTableRecovery(c *C) {
@@ -59,7 +76,7 @@ func (s *SimpleDbSuite) TestTableRecovery(c *C) {
 	CloseTable(tmp)
 
 	t := RecoverTable("table")
-	c.Check(TableRead(t, 1), DeepEquals, []byte("v1"))
-	c.Check(TableRead(t, 2), DeepEquals, []byte("v two"))
-	c.Check(TableRead(t, 10), DeepEquals, []byte("value ten"))
+	c.Check(tableRead(t, 1), DeepEquals, present("v1"))
+	c.Check(tableRead(t, 2), DeepEquals, present("v two"))
+	c.Check(tableRead(t, 10), DeepEquals, present("value ten"))
 }

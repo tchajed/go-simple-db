@@ -116,13 +116,13 @@ func ReadValue(f filesys.File, off uint64) []byte {
 	return buf[:totalBytes]
 }
 
-func TableRead(t Table, k uint64) []byte {
+func TableRead(t Table, k uint64) ([]byte, bool) {
 	off, ok := t.Index[k]
 	if !ok {
-		return nil
+		return nil, false
 	}
 	p := ReadValue(t.File, off)
-	return p
+	return p, true
 }
 
 type bufFile struct {
