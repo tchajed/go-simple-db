@@ -38,3 +38,28 @@ func (s *SimpleDbSuite) TestBufFile(c *C) {
 	bufClose(f)
 	c.Check(readFile("test"), DeepEquals, []byte("hello world!"))
 }
+
+func (s *SimpleDbSuite) TestTableWriter(c *C) {
+	w := newTableWriter("table")
+	tablePut(w, 1, []byte("v1"))
+	tablePut(w, 10, []byte("value ten"))
+	tablePut(w, 2, []byte("v two"))
+	t := tableWriterClose(w)
+	c.Check(TableRead(t, 1), DeepEquals, []byte("v1"))
+	c.Check(TableRead(t, 2), DeepEquals, []byte("v two"))
+	c.Check(TableRead(t, 10), DeepEquals, []byte("value ten"))
+}
+
+func (s *SimpleDbSuite) TestTableRecovery(c *C) {
+	w := newTableWriter("table")
+	tablePut(w, 1, []byte("v1"))
+	tablePut(w, 10, []byte("value ten"))
+	tablePut(w, 2, []byte("v two"))
+	tmp := tableWriterClose(w)
+	CloseTable(tmp)
+
+	t := RecoverTable("table")
+	c.Check(TableRead(t, 1), DeepEquals, []byte("v1"))
+	c.Check(TableRead(t, 2), DeepEquals, []byte("v two"))
+	c.Check(TableRead(t, 10), DeepEquals, []byte("value ten"))
+}
