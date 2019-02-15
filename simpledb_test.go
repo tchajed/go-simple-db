@@ -49,6 +49,8 @@ func tableRead(t Table, k uint64) readValue {
 	return readValue{value: v, present: ok}
 }
 
+var missing = readValue{value: nil, present: false}
+
 func present(v string) readValue {
 	return readValue{
 		value:   []byte(v),
@@ -79,4 +81,18 @@ func (s *SimpleDbSuite) TestTableRecovery(c *C) {
 	c.Check(tableRead(t, 1), DeepEquals, present("v1"))
 	c.Check(tableRead(t, 2), DeepEquals, present("v two"))
 	c.Check(tableRead(t, 10), DeepEquals, present("value ten"))
+}
+
+func dbRead(db Database, k uint64) readValue {
+	v, ok := Read(db, k)
+	return readValue{value: v, present: ok}
+}
+
+func (s *SimpleDbSuite) TestReadWrite(c *C) {
+	db := NewDb()
+	c.Check(dbRead(db, 1), DeepEquals, missing)
+	Write(db, 1, []byte("v1"))
+	Write(db, 2, []byte("value 2"))
+	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
+	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
 }
