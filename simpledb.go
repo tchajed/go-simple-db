@@ -195,7 +195,8 @@ func tableWriterClose(w tableWriter) Table {
 func EncodeUInt64(x uint64, p []byte) []byte {
 	tmp := make([]byte, 8)
 	machine.UInt64Put(tmp, x)
-	return append(p, tmp...)
+	p2 := append(p, tmp...)
+	return p2
 }
 
 func EncodeSlice(data []byte, p []byte) []byte {
