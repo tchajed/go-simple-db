@@ -96,3 +96,27 @@ func (s *SimpleDbSuite) TestReadWrite(c *C) {
 	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
 	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
 }
+
+func (s *SimpleDbSuite) TestCompact(c *C) {
+	db := NewDb()
+	c.Check(dbRead(db, 1), DeepEquals, missing)
+	Write(db, 1, []byte("v1"))
+	Compact(db)
+	Compact(db)
+	Write(db, 2, []byte("value 2"))
+	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
+	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
+}
+
+func (s *SimpleDbSuite) TestRecover(c *C) {
+	db := NewDb()
+	c.Check(dbRead(db, 1), DeepEquals, missing)
+	Write(db, 1, []byte("v1"))
+	Compact(db)
+	Compact(db)
+	Write(db, 2, []byte("value 2"))
+	Shutdown(db)
+	db = Recover()
+	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
+	c.Check(dbRead(db, 2), DeepEquals, missing)
+}
