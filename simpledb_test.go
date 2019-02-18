@@ -29,6 +29,27 @@ func readFile(p string) (data []byte) {
 	}
 }
 
+func (s *SimpleDbSuite) TestEntryEncoding(c *C) {
+	e := Entry{Key: 3, Value: []byte("value")}
+	var buf []byte
+	buf = EncodeUInt64(e.Key, buf)
+	buf = EncodeSlice(e.Value, buf)
+
+	decoded, l := DecodeEntry(buf)
+	c.Assert(l, Equals, uint64(len(buf)))
+	c.Check(decoded, DeepEquals, e)
+}
+
+func (s *SimpleDbSuite) TestEntryEncodingShort(c *C) {
+	e := Entry{Key: 3, Value: []byte("value")}
+	var buf []byte
+	buf = EncodeUInt64(e.Key, buf)
+	buf = EncodeSlice(e.Value, buf)
+
+	_, l := DecodeEntry(buf[:len(buf)-1])
+	c.Assert(l, Equals, uint64(0))
+}
+
 func (s *SimpleDbSuite) TestBufFile(c *C) {
 	f := newBuf(filesys.Create("test"))
 	bufAppend(f, []byte("hello "))
@@ -67,6 +88,18 @@ func (s *SimpleDbSuite) TestTableWriter(c *C) {
 	c.Check(tableRead(t, 1), DeepEquals, present("v1"))
 	c.Check(tableRead(t, 2), DeepEquals, present("v two"))
 	c.Check(tableRead(t, 10), DeepEquals, present("value ten"))
+}
+
+func (s *SimpleDbSuite) TestTableWriterLargeValue(c *C) {
+	w := newTableWriter("table")
+	data := make([]byte, 5000)
+	for i := range data {
+		data[i] = byte(i % 10)
+	}
+	tablePut(w, 1, data)
+	t := tableWriterClose(w)
+	c.Check(tableRead(t, 1), DeepEquals,
+		readValue{value: data, present: true})
 }
 
 func (s *SimpleDbSuite) TestTableRecovery(c *C) {
@@ -119,4 +152,50 @@ func (s *SimpleDbSuite) TestRecover(c *C) {
 	db = Recover()
 	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
 	c.Check(dbRead(db, 2), DeepEquals, missing)
+}
+
+func (s *SimpleDbSuite) TestClose(c *C) {
+	db := NewDb()
+	c.Check(dbRead(db, 1), DeepEquals, missing)
+	Write(db, 1, []byte("v1"))
+	Compact(db)
+	Compact(db)
+	Write(db, 2, []byte("value 2"))
+	Close(db)
+	db = Recover()
+	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
+	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
+}
+
+func (s *SimpleDbSuite) TestReadBuffer(c *C) {
+	db := NewDb()
+	Write(db, 1, []byte("v1"))
+	Compact(db)
+	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
+}
+
+func (s *SimpleDbSuite) TestReadLargeValue(c *C) {
+	db := NewDb()
+	data := make([]byte, 5000)
+	for i := range data {
+		data[i] = byte(i % 10)
+	}
+	Write(db, 1, data)
+	Compact(db)
+	Compact(db)
+	c.Check(dbRead(db, 1), DeepEquals,
+		readValue{value: data, present: true})
+}
+
+func (s *SimpleDbSuite) TestRecoverLargeValue(c *C) {
+	db := NewDb()
+	data := make([]byte, 5000)
+	for i := range data {
+		data[i] = byte(i % 10)
+	}
+	Write(db, 1, data)
+	Close(db)
+	db = Recover()
+	c.Check(dbRead(db, 1), DeepEquals,
+		readValue{value: data, present: true})
 }
