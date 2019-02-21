@@ -26,6 +26,29 @@ func (conf Config) runBench(name string, par int, f func(b *bencher)) {
 	b.stop()
 }
 
+// startCompaction starts running compactions continuously
+//
+// startCompaction returns a channel. To stop compaction,
+// read from this channel; after the current compaction finishes,
+// the read will return the number of compactions completed and no more will
+// run.
+func startCompaction(b *bencher) (done chan int) {
+	done = make(chan int)
+	numCompactions := 0
+	go func() {
+		for {
+			select {
+			case done <- numCompactions:
+				return
+			default:
+				b.Compact()
+				numCompactions++
+			}
+		}
+	}()
+	return done
+}
+
 func main() {
 	var conf Config
 	flag.StringVar(&conf.DatabaseDir, "dir", "bench.dir",
@@ -59,6 +82,18 @@ func main() {
 			b.finishOp(0, b.Write())
 		}
 		b.Compact()
+	})
+
+	conf.runBench("write + compact", 1, func(b *bencher) {
+		b.Fill()
+		b.Reset()
+		stopCompaction := startCompaction(b)
+		for i := 0; i < 1000*kiters; i++ {
+			b.finishOp(0, b.Write())
+		}
+		b.finish()
+		numCompactions := <-stopCompaction
+		fmt.Printf("  finished %d compactions\n", numCompactions)
 	})
 
 	conf.runBench("wbuf reads", 1, func(b *bencher) {
@@ -131,7 +166,7 @@ func main() {
 			b.Fill()
 			b.Compact()
 			b.Reset()
-			stopCompaction := make(chan bool)
+			stopCompaction := startCompaction(b)
 			done := make(chan bool)
 			for tid := 0; tid < par; tid++ {
 				go func(tid int) {
@@ -141,24 +176,11 @@ func main() {
 					done <- true
 				}(tid)
 			}
-			numCompactions := 0
-			go func() {
-				for {
-					b.Compact()
-					numCompactions++
-					select {
-					case <-stopCompaction:
-						return
-					default:
-						continue
-					}
-				}
-			}()
 			for tid := 0; tid < par; tid++ {
 				<-done
 			}
 			b.finish()
-			stopCompaction <- true
+			numCompactions := <-stopCompaction
 			fmt.Printf("  finished %d compactions\n", numCompactions)
 		})
 }
