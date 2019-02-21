@@ -79,7 +79,7 @@ func main() {
 
 	conf.runBench("writes", 1, func(b *bencher) {
 		for i := 0; i < 1000*kiters; i++ {
-			b.finishOp(0, b.Write())
+			b.finishOp(0, b.Write(0))
 		}
 		b.Compact()
 	})
@@ -89,7 +89,7 @@ func main() {
 		b.Reset()
 		stopCompaction := startCompaction(b)
 		for i := 0; i < 1000*kiters; i++ {
-			b.finishOp(0, b.Write())
+			b.finishOp(0, b.Write(0))
 		}
 		b.finish()
 		numCompactions := <-stopCompaction
@@ -100,7 +100,7 @@ func main() {
 		b.Fill()
 		b.Reset()
 		for i := 0; i < 1000*kiters; i++ {
-			b.finishOp(0, b.Read())
+			b.finishOp(0, b.Read(0))
 		}
 	})
 	conf.runBench("table reads", 1, func(b *bencher) {
@@ -109,7 +109,7 @@ func main() {
 		b.Compact()
 		b.Reset()
 		for i := 0; i < 1000*kiters; i++ {
-			b.finishOp(0, b.Read())
+			b.finishOp(0, b.Read(0))
 		}
 	})
 
@@ -124,7 +124,7 @@ func main() {
 			for tid := 0; tid < par; tid++ {
 				go func(tid int) {
 					for i := 0; i < 1000*kiters; i++ {
-						b.finishOp(tid, b.Read())
+						b.finishOp(tid, b.Read(tid))
 					}
 					done <- true
 				}(tid)
@@ -144,7 +144,7 @@ func main() {
 			for tid := 0; tid < par; tid++ {
 				go func(tid int) {
 					for i := 0; i < 1000*kiters; i++ {
-						b.finishOp(tid, b.Read())
+						b.finishOp(tid, b.Read(tid))
 					}
 					done <- true
 				}(tid)
@@ -165,7 +165,7 @@ func main() {
 			for tid := 0; tid < par; tid++ {
 				go func(tid int) {
 					for i := 0; i < 1000*kiters; i++ {
-						b.finishOp(tid, b.Read())
+						b.finishOp(tid, b.Read(tid))
 					}
 					done <- true
 				}(tid)

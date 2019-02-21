@@ -11,19 +11,24 @@ import (
 )
 
 type gen struct {
-	rand    *rand.Rand
+	rand    []*rand.Rand
 	maxKeys int
 }
 
-func newGen(maxKeys int) gen {
+func newGen(par int, maxKeys int) gen {
+	generators := make([]*rand.Rand, par)
+	for i := range generators {
+		seed := int64(i)
+		generators[i] = rand.New(rand.NewSource(seed))
+	}
 	return gen{
-		rand:    rand.New(rand.NewSource(0)),
+		rand:    generators,
 		maxKeys: maxKeys,
 	}
 }
 
-func (g gen) RandomKey() uint64 {
-	n := g.rand.Int63n(int64(g.maxKeys))
+func (g gen) RandomKey(tid int) uint64 {
+	n := g.rand[tid].Int63n(int64(g.maxKeys))
 	return uint64(n)
 }
 
@@ -136,7 +141,7 @@ type bencher struct {
 
 func newBench(conf Config, name string, par int) bencher {
 	db := prepareDb(conf.DatabaseDir)
-	gen := newGen(conf.DatabaseSize)
+	gen := newGen(par, conf.DatabaseSize)
 	return bencher{
 		name:  name,
 		conf:  conf,
@@ -166,8 +171,8 @@ func (b *bencher) IsFinished() bool {
 }
 
 // Read a random key. Returns the bytes of data read.
-func (b *bencher) Read() int {
-	v, ok := simpledb.Read(b.db, b.RandomKey())
+func (b *bencher) Read(tid int) int {
+	v, ok := simpledb.Read(b.db, b.RandomKey(tid))
 	if !ok {
 		return 0
 	}
@@ -181,8 +186,8 @@ func (b *bencher) writeKey(k uint64) int {
 }
 
 // Write a random key. Returns the number of bytes written.
-func (b *bencher) Write() int {
-	return b.writeKey(b.RandomKey())
+func (b *bencher) Write(tid int) int {
+	return b.writeKey(b.RandomKey(tid))
 }
 
 func (b *bencher) Fill() {
