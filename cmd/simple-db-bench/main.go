@@ -12,12 +12,11 @@ import (
 type Config struct {
 	DatabaseDir  string
 	DatabaseSize int
-	BenchFilter  string
-	filter       *regexp.Regexp
+	BenchFilter  *regexp.Regexp
 }
 
 func (conf Config) runBench(name string, par int, f func(b *bencher)) {
-	if !conf.filter.MatchString(name) {
+	if !conf.BenchFilter.MatchString(name) {
 		return
 	}
 	b := newBench(conf, name, par)
@@ -57,8 +56,8 @@ func main() {
 		"directory to store database in")
 	flag.IntVar(&conf.DatabaseSize, "size", 10000,
 		"size of database")
-	flag.StringVar(&conf.BenchFilter, "run", "",
-		"regex to filter benchmarks (empty string means run all)")
+	filterString := flag.String("run", "",
+		"regex to BenchFilter benchmarks (empty string means run all)")
 	var kiters int
 	flag.IntVar(&kiters, "kiters", 1000,
 		"thousands of iterations to run")
@@ -69,14 +68,14 @@ func main() {
 		"write cpu profile to `file`")
 	flag.Parse()
 
-	if conf.BenchFilter == "" {
-		conf.filter = regexp.MustCompile(".*")
+	if filterString == nil || *filterString == "" {
+		conf.BenchFilter = regexp.MustCompile(".*")
 	} else {
-		filter, err := regexp.Compile(conf.BenchFilter)
+		var err error
+		conf.BenchFilter, err = regexp.Compile(*filterString)
 		if err != nil {
-			log.Fatalf("invalid filter %s: %s\n", conf.BenchFilter, err)
+			log.Fatalf("invalid BenchFilter %s: %s\n", *filterString, err)
 		}
-		conf.filter = filter
 	}
 
 	if *cpuprofile != "" {
