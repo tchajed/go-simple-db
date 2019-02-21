@@ -14,7 +14,7 @@ type SimpleDbSuite struct{}
 var _ = Suite(&SimpleDbSuite{})
 
 func (s *SimpleDbSuite) SetUpTest(c *C) {
-	filesys.Fs = filesys.MemFs()
+	filesys.Fs = filesys.NewMemFs()
 }
 
 func readFile(p string) (data []byte) {
