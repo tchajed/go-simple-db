@@ -96,13 +96,7 @@ func main() {
 		fmt.Printf("  finished %d compactions\n", numCompactions)
 	})
 
-	conf.runBench("wbuf reads", 1, func(b *bencher) {
-		for i := 0; i < 1000*kiters; i++ {
-			b.finishOp(0, b.Write())
-		}
-		b.Compact()
-	})
-	conf.runBench("wbuf reads", 1, func(b *bencher) {
+	conf.runBench("rbuf reads", 1, func(b *bencher) {
 		b.Fill()
 		b.Reset()
 		for i := 0; i < 1000*kiters; i++ {
