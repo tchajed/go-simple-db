@@ -126,11 +126,6 @@ func shutdownDb(db simpledb.Database, dir string) {
 	}
 }
 
-type Config struct {
-	DatabaseDir  string
-	DatabaseSize int
-}
-
 type bencher struct {
 	name string
 	conf Config
@@ -155,10 +150,19 @@ func (b *bencher) Reset() {
 	b.stats = newStats(b.stats.Par())
 }
 
+// finish stops collecting data and reports the results
 func (b *bencher) finish() {
 	b.stats.done()
-	fmt.Printf("%-20s : %s\n", b.name, b.stats.formatStats())
+	fmt.Printf("%-25s : %s\n", b.name, b.stats.formatStats())
+}
+
+// stop shuts down the database
+func (b *bencher) stop() {
 	shutdownDb(b.db, b.conf.DatabaseDir)
+}
+
+func (b *bencher) IsFinished() bool {
+	return b.stats.end != nil
 }
 
 // Read a random key. Returns the bytes of data read.
