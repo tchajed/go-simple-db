@@ -2,7 +2,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 )
+
+func (conf Config) runBench(name string, par int, f func(b *bencher)) {
+	b := newBench(conf, name, par)
+	f(&b)
+	b.finish()
+}
 
 func main() {
 	var conf Config
@@ -13,31 +20,59 @@ func main() {
 	var kiters int
 	flag.IntVar(&kiters, "kiters", 1000,
 		"thousands of iterations to run")
+	var par int
+	flag.IntVar(&par, "par", 2,
+		"number of concurrent threads for concurrent benchmarks")
 	flag.Parse()
 
-	var b bencher
-	b = newBench(conf, "writes")
-	for i := 0; i < 1000*kiters; i++ {
-		b.finishOp(b.Write())
-	}
-	b.Compact()
-	b.finish()
+	conf.runBench("writes", 1, func(b *bencher) {
+		for i := 0; i < 1000*kiters; i++ {
+			b.finishOp(0, b.Write())
+		}
+		b.Compact()
+	})
 
-	b = newBench(conf, "wbuf reads")
-	b.Fill()
-	b.Reset()
-	for i := 0; i < 1000*kiters; i++ {
-		b.finishOp(b.Read())
-	}
-	b.finish()
+	conf.runBench("wbuf reads", 1, func(b *bencher) {
+		for i := 0; i < 1000*kiters; i++ {
+			b.finishOp(0, b.Write())
+		}
+		b.Compact()
+	})
+	conf.runBench("wbuf reads", 1, func(b *bencher) {
+		b.Fill()
+		b.Reset()
+		for i := 0; i < 1000*kiters; i++ {
+			b.finishOp(0, b.Read())
+		}
+	})
+	conf.runBench("table reads", 1, func(b *bencher) {
+		b.Fill()
+		b.Compact()
+		b.Compact()
+		b.Reset()
+		for i := 0; i < 1000*kiters; i++ {
+			b.finishOp(0, b.Read())
+		}
+	})
 
-	b = newBench(conf, "table reads")
-	b.Fill()
-	b.Compact()
-	b.Compact()
-	b.Reset()
-	for i := 0; i < 1000*kiters; i++ {
-		b.finishOp(b.Read())
-	}
-	b.finish()
+	conf.runBench(fmt.Sprintf("table reads (par=%d)", par),
+		par,
+		func(b *bencher) {
+			b.Fill()
+			b.Compact()
+			b.Compact()
+			b.Reset()
+			done := make(chan bool)
+			for tid := 0; tid < par; tid++ {
+				go func(tid int) {
+					for i := 0; i < 1000*kiters; i++ {
+						b.finishOp(tid, b.Read())
+					}
+					done <- true
+				}(tid)
+			}
+			for tid := 0; tid < par; tid++ {
+				<-done
+			}
+		})
 }

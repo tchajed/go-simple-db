@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	simpledb "github.com/tchajed/go-simple-db"
+	"github.com/tchajed/go-simple-db"
 	"github.com/tchajed/goose/machine/filesys"
 )
 
@@ -32,19 +32,24 @@ func (g gen) Value() []byte {
 }
 
 type stats struct {
-	ops   int
-	bytes int
+	ops   []int
+	bytes []int
 	start time.Time
 	end   *time.Time
 }
 
-func newStats() stats {
-	return stats{start: time.Now()}
+func newStats(numThreads int) stats {
+	return stats{
+		ops:   make([]int, numThreads),
+		bytes: make([]int, numThreads),
+		start: time.Now(),
+		end:   nil,
+	}
 }
 
-func (s *stats) finishOp(bytes int) {
-	s.ops++
-	s.bytes += bytes
+func (s *stats) finishOp(tid int, bytes int) {
+	s.ops[tid]++
+	s.bytes[tid] += bytes
 }
 
 func (s *stats) done() {
@@ -55,22 +60,42 @@ func (s *stats) done() {
 	s.end = &t
 }
 
+func (s stats) Par() int {
+	return len(s.ops)
+}
+
+func (s stats) TotalOps() int {
+	total := 0
+	for _, ops := range s.ops {
+		total += ops
+	}
+	return total
+}
+
+func (s stats) TotalBytes() int {
+	total := 0
+	for _, bytes := range s.bytes {
+		total += bytes
+	}
+	return total
+}
+
 func (s stats) seconds() float64 {
 	return s.end.Sub(s.start).Seconds()
 }
 
 func (s stats) MicrosPerOp() float64 {
-	return (s.seconds() * 1e6) / float64(s.ops)
+	return (s.seconds() * 1e6) / float64(s.TotalOps())
 }
 
 func (s stats) MegabytesPerSec() float64 {
-	mb := float64(s.bytes) / (1024 * 1024)
+	mb := float64(s.TotalBytes()) / (1024 * 1024)
 	return mb / s.seconds()
 }
 
 func (s stats) formatStats() string {
-	if s.bytes == 0 {
-		if s.ops == 1 {
+	if s.TotalBytes() == 0 {
+		if s.TotalOps() == 1 {
 			return fmt.Sprintf("%7.3f micros", s.MicrosPerOp())
 		}
 		return fmt.Sprintf("%7.3f micros/op", s.MicrosPerOp())
@@ -114,20 +139,20 @@ type bencher struct {
 	db simpledb.Database
 }
 
-func newBench(conf Config, name string) bencher {
+func newBench(conf Config, name string, par int) bencher {
 	db := prepareDb(conf.DatabaseDir)
 	gen := newGen(conf.DatabaseSize)
 	return bencher{
 		name:  name,
 		conf:  conf,
-		stats: newStats(),
+		stats: newStats(par),
 		gen:   gen,
 		db:    db,
 	}
 }
 
 func (b *bencher) Reset() {
-	b.stats = newStats()
+	b.stats = newStats(b.stats.Par())
 }
 
 func (b *bencher) finish() {
