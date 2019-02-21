@@ -53,7 +53,7 @@ func main() {
 	var conf Config
 	flag.StringVar(&conf.DatabaseDir, "dir", "bench.dir",
 		"directory to store database in")
-	flag.IntVar(&conf.DatabaseSize, "size", 1000,
+	flag.IntVar(&conf.DatabaseSize, "size", 10000,
 		"size of database")
 	flag.StringVar(&conf.BenchFilter, "run", "",
 		"regex to filter benchmarks (empty string means run all)")
