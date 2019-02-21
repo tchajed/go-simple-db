@@ -4,3 +4,8 @@ go:
 - "1.11.x"
 - "1.10"
 - "1.9"
+
+script:
+  - go test -v ./...
+  - go build ./cmd/simple-db-bench
+  - ./simple-db-bench -kiters 10
