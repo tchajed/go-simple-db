@@ -107,13 +107,13 @@ func CloseTable(t Table) {
 }
 
 func ReadValue(f filesys.File, off uint64) []byte {
-	startBuf := filesys.ReadAt(f, off, 4096)
+	startBuf := filesys.ReadAt(f, off, 512)
 	totalBytes := machine.UInt64Get(startBuf)
 	// should have enough data for the key if the file is a proper encoding
 	buf := startBuf[8:]
 	haveBytes := uint64(len(buf))
 	if haveBytes < totalBytes {
-		buf2 := filesys.ReadAt(f, off+4096, totalBytes-haveBytes)
+		buf2 := filesys.ReadAt(f, off+512, totalBytes-haveBytes)
 		newBuf := append(buf, buf2...)
 		return newBuf
 	}
