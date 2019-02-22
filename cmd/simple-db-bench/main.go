@@ -21,7 +21,7 @@ func (conf Config) runBench(name string, par int, f func(b *bencher)) {
 		return
 	}
 	if conf.ListBenches {
-		fmt.Printf("%-25s\n", name)
+		fmt.Println(name)
 		return
 	}
 	b := newBench(conf, name, par)
