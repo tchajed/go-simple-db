@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"runtime"
 	"runtime/pprof"
 )
 
@@ -55,6 +56,18 @@ func startCompaction(b *bencher) (done chan int) {
 	return done
 }
 
+func writeMemProfile(fname string) {
+	f, err := os.Create(fname)
+	if err != nil {
+		log.Fatal("could not create memory profile: ", err)
+	}
+	runtime.GC() // get up-to-date statistics
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		log.Fatal("could not write memory profile: ", err)
+	}
+	f.Close()
+}
+
 func main() {
 	var conf Config
 	flag.StringVar(&conf.DatabaseDir, "dir", "bench.dir",
@@ -73,6 +86,8 @@ func main() {
 		"number of concurrent threads for concurrent benchmarks")
 	var cpuprofile = flag.String("cpuprofile", "",
 		"write cpu profile to `file`")
+	var memprofile = flag.String("memprofile", "",
+		"write memory cpu profile to `file`")
 	flag.Parse()
 
 	if filterString == nil || *filterString == "" {
@@ -94,6 +109,10 @@ func main() {
 			log.Fatal("could not start CPU profile: ", err)
 		}
 		defer pprof.StopCPUProfile()
+	}
+
+	if *memprofile != "" {
+		defer writeMemProfile(*memprofile)
 	}
 
 	conf.runBench("writes", 1, func(b *bencher) {
