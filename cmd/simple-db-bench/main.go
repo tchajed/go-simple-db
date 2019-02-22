@@ -13,10 +13,15 @@ type Config struct {
 	DatabaseDir  string
 	DatabaseSize int
 	BenchFilter  *regexp.Regexp
+	ListBenches  bool
 }
 
 func (conf Config) runBench(name string, par int, f func(b *bencher)) {
 	if !conf.BenchFilter.MatchString(name) {
+		return
+	}
+	if conf.ListBenches {
+		fmt.Printf("%-25s\n", name)
 		return
 	}
 	b := newBench(conf, name, par)
@@ -56,6 +61,8 @@ func main() {
 		"directory to store database in")
 	flag.IntVar(&conf.DatabaseSize, "size", 10000,
 		"size of database")
+	flag.BoolVar(&conf.ListBenches, "list", false,
+		"list (matching) benchmarks without running them")
 	filterString := flag.String("run", "",
 		"regex to BenchFilter benchmarks (empty string means run all)")
 	var kiters int
