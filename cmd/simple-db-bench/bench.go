@@ -133,13 +133,13 @@ func shutdownDb(db simpledb.Database, dir string) {
 
 type bencher struct {
 	name string
-	conf Config
+	conf config
 	stats
 	gen
 	db simpledb.Database
 }
 
-func newBench(conf Config, name string, par int) bencher {
+func newBench(conf config, name string, par int) bencher {
 	db := prepareDb(conf.DatabaseDir)
 	gen := newGen(par, conf.DatabaseSize)
 	return bencher{

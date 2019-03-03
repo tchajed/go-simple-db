@@ -10,14 +10,14 @@ import (
 	"runtime/pprof"
 )
 
-type Config struct {
+type config struct {
 	DatabaseDir  string
 	DatabaseSize int
 	BenchFilter  *regexp.Regexp
 	ListBenches  bool
 }
 
-func (conf Config) runBench(name string, par int, f func(b *bencher)) {
+func (conf config) runBench(name string, par int, f func(b *bencher)) {
 	if !conf.BenchFilter.MatchString(name) {
 		return
 	}
@@ -69,7 +69,7 @@ func writeMemProfile(fname string) {
 }
 
 func main() {
-	var conf Config
+	var conf config
 	flag.StringVar(&conf.DatabaseDir, "dir", "bench.dir",
 		"directory to store database in")
 	flag.IntVar(&conf.DatabaseSize, "size", 10000,

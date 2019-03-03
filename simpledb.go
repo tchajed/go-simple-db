@@ -1,3 +1,11 @@
+/*
+Package simpledb implements a one-table version of LevelDB
+
+It buffers all writes in memory; to make data durable, call Compact().
+This operation re-writes all of the data in the database
+(including in-memory writes) in a crash-safe manner.
+Keys in the table are cached for efficient reads.
+*/
 package simpledb
 
 import (
@@ -106,7 +114,7 @@ func CloseTable(t Table) {
 	filesys.Close(t.File)
 }
 
-func ReadValue(f filesys.File, off uint64) []byte {
+func readValue(f filesys.File, off uint64) []byte {
 	startBuf := filesys.ReadAt(f, off, 512)
 	totalBytes := machine.UInt64Get(startBuf)
 	// should have enough data for the key if the file is a proper encoding
@@ -120,12 +128,12 @@ func ReadValue(f filesys.File, off uint64) []byte {
 	return buf[:totalBytes]
 }
 
-func TableRead(t Table, k uint64) ([]byte, bool) {
+func tableRead(t Table, k uint64) ([]byte, bool) {
 	off, ok := t.Index[k]
 	if !ok {
 		return nil, false
 	}
-	p := ReadValue(t.File, off)
+	p := readValue(t.File, off)
 	return p, true
 }
 
@@ -225,6 +233,7 @@ func tablePut(w tableWriter, k uint64, v []byte) {
 	tableWriterAppend(w, tmp3)
 }
 
+// Database is a handle to an open database.
 type Database struct {
 	wbuffer *map[uint64][]byte
 	rbuffer *map[uint64][]byte
@@ -245,6 +254,7 @@ func makeValueBuffer() *map[uint64][]byte {
 	return bufPtr
 }
 
+// NewDb initializes a new database on top of an empty filesys.
 func NewDb() Database {
 	wbuf := makeValueBuffer()
 	rbuf := makeValueBuffer()
@@ -268,6 +278,12 @@ func NewDb() Database {
 	}
 }
 
+// Read gets a key from the database.
+//
+// Returns a boolean indicating if the k was found and a non-nil slice with
+// the value if k was in the database.
+//
+// Reflects any completed in-memory writes.
 func Read(db Database, k uint64) ([]byte, bool) {
 	db.bufferL.RLock()
 	// first try write buffer
@@ -287,12 +303,18 @@ func Read(db Database, k uint64) ([]byte, bool) {
 	// ...and finally go to the table
 	db.tableL.RLock()
 	tbl := *db.table
-	v3, ok := TableRead(tbl, k)
+	v3, ok := tableRead(tbl, k)
 	db.tableL.RUnlock()
 	db.bufferL.RUnlock()
 	return v3, ok
 }
 
+// Write sets a key to a new value.
+//
+// Creates a new key-value mapping if k is not in the database and overwrites
+// the previous value if k is present.
+//
+// The new value is buffered in memory. To persist it, call db.Compact().
 func Write(db Database, k uint64, v []byte) {
 	db.bufferL.Lock()
 	buf := *db.wbuffer
@@ -368,6 +390,10 @@ func constructNewTable(db Database, wbuf map[uint64][]byte) (Table, Table) {
 	return oldTable, newTable
 }
 
+// Compact persists in-memory writes to a new table.
+//
+// This simple database design must re-write all data to combine in-memory
+// writes with existing writes.
 func Compact(db Database) {
 	db.compactionL.Lock()
 
@@ -449,6 +475,7 @@ func deleteOtherFiles(tableName string) {
 	}
 }
 
+// Recover restores a previously created database after a crash or shutdown.
 func Recover() Database {
 	tableName := recoverManifest()
 	table := RecoverTable(tableName)
@@ -476,7 +503,10 @@ func Recover() Database {
 	}
 }
 
-// immediate shutdown; like a crash, but cleanly close all files
+// Shutdown immediately closes the database.
+//
+// Discards any uncommitted in-memory writes; similar to a crash except for
+// cleanly closing any open files.
 func Shutdown(db Database) {
 	db.bufferL.Lock()
 	db.compactionL.Lock()
@@ -488,6 +518,9 @@ func Shutdown(db Database) {
 	db.bufferL.Unlock()
 }
 
+// Close closes an open database cleanly, flushing any in-memory writes.
+//
+// db should not be used afterward
 func Close(db Database) {
 	Compact(db)
 	Shutdown(db)

@@ -60,23 +60,27 @@ func (s *SimpleDbSuite) TestBufFile(c *C) {
 	c.Check(readFile("test"), DeepEquals, []byte("hello world!"))
 }
 
-type readValue struct {
+type maybeValue struct {
 	value   []byte
 	present bool
 }
 
-func tableRead(t Table, k uint64) readValue {
-	v, ok := TableRead(t, k)
-	return readValue{value: v, present: ok}
+func tblRead(t Table, k uint64) maybeValue {
+	v, ok := tableRead(t, k)
+	return maybeValue{value: v, present: ok}
 }
 
-var missing = readValue{value: nil, present: false}
+var missing = maybeValue{value: nil, present: false}
 
-func present(v string) readValue {
-	return readValue{
-		value:   []byte(v),
+func bytesPresent(data []byte) maybeValue {
+	return maybeValue{
+		value:   data,
 		present: true,
 	}
+}
+
+func present(v string) maybeValue {
+	return bytesPresent([]byte(v))
 }
 
 func (s *SimpleDbSuite) TestTableWriter(c *C) {
@@ -85,9 +89,9 @@ func (s *SimpleDbSuite) TestTableWriter(c *C) {
 	tablePut(w, 10, []byte("value ten"))
 	tablePut(w, 2, []byte("v two"))
 	t := tableWriterClose(w)
-	c.Check(tableRead(t, 1), DeepEquals, present("v1"))
-	c.Check(tableRead(t, 2), DeepEquals, present("v two"))
-	c.Check(tableRead(t, 10), DeepEquals, present("value ten"))
+	c.Check(tblRead(t, 1), DeepEquals, present("v1"))
+	c.Check(tblRead(t, 2), DeepEquals, present("v two"))
+	c.Check(tblRead(t, 10), DeepEquals, present("value ten"))
 }
 
 func (s *SimpleDbSuite) TestTableWriterLargeValue(c *C) {
@@ -98,8 +102,7 @@ func (s *SimpleDbSuite) TestTableWriterLargeValue(c *C) {
 	}
 	tablePut(w, 1, data)
 	t := tableWriterClose(w)
-	c.Check(tableRead(t, 1), DeepEquals,
-		readValue{value: data, present: true})
+	c.Check(tblRead(t, 1), DeepEquals, bytesPresent(data))
 }
 
 func (s *SimpleDbSuite) TestTableRecovery(c *C) {
@@ -111,14 +114,14 @@ func (s *SimpleDbSuite) TestTableRecovery(c *C) {
 	CloseTable(tmp)
 
 	t := RecoverTable("table")
-	c.Check(tableRead(t, 1), DeepEquals, present("v1"))
-	c.Check(tableRead(t, 2), DeepEquals, present("v two"))
-	c.Check(tableRead(t, 10), DeepEquals, present("value ten"))
+	c.Check(tblRead(t, 1), DeepEquals, present("v1"))
+	c.Check(tblRead(t, 2), DeepEquals, present("v two"))
+	c.Check(tblRead(t, 10), DeepEquals, present("value ten"))
 }
 
-func dbRead(db Database, k uint64) readValue {
+func dbRead(db Database, k uint64) maybeValue {
 	v, ok := Read(db, k)
-	return readValue{value: v, present: ok}
+	return maybeValue{value: v, present: ok}
 }
 
 func (s *SimpleDbSuite) TestReadWrite(c *C) {
@@ -183,8 +186,7 @@ func (s *SimpleDbSuite) TestReadLargeValue(c *C) {
 	Write(db, 1, data)
 	Compact(db)
 	Compact(db)
-	c.Check(dbRead(db, 1), DeepEquals,
-		readValue{value: data, present: true})
+	c.Check(dbRead(db, 1), DeepEquals, bytesPresent(data))
 }
 
 func (s *SimpleDbSuite) TestRecoverLargeValue(c *C) {
@@ -196,6 +198,5 @@ func (s *SimpleDbSuite) TestRecoverLargeValue(c *C) {
 	Write(db, 1, data)
 	Close(db)
 	db = Recover()
-	c.Check(dbRead(db, 1), DeepEquals,
-		readValue{value: data, present: true})
+	c.Check(dbRead(db, 1), DeepEquals, bytesPresent(data))
 }
