@@ -3,19 +3,10 @@ package simpledb
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"github.com/tchajed/goose/machine/filesys"
 )
-import . "gopkg.in/check.v1"
-
-func Test(t *testing.T) { TestingT(t) }
-
-type SimpleDbSuite struct{}
-
-var _ = Suite(&SimpleDbSuite{})
-
-func (s *SimpleDbSuite) SetUpTest(c *C) {
-	filesys.Fs = filesys.NewMemFs()
-}
 
 func readFile(p string) (data []byte) {
 	f := filesys.Open(p)
@@ -29,35 +20,48 @@ func readFile(p string) (data []byte) {
 	}
 }
 
-func (s *SimpleDbSuite) TestEntryEncoding(c *C) {
+func TestEntryEncoding(t *testing.T) {
+	assert := assert.New(t)
 	e := Entry{Key: 3, Value: []byte("value")}
 	var buf []byte
 	buf = EncodeUInt64(e.Key, buf)
 	buf = EncodeSlice(e.Value, buf)
 
 	decoded, l := DecodeEntry(buf)
-	c.Assert(l, Equals, uint64(len(buf)))
-	c.Check(decoded, DeepEquals, e)
+	assert.Equal(uint64(len(buf)), l)
+	assert.Equal(e, decoded)
 }
 
-func (s *SimpleDbSuite) TestEntryEncodingShort(c *C) {
+func TestEntryEncodingShort(t *testing.T) {
 	e := Entry{Key: 3, Value: []byte("value")}
 	var buf []byte
 	buf = EncodeUInt64(e.Key, buf)
 	buf = EncodeSlice(e.Value, buf)
 
 	_, l := DecodeEntry(buf[:len(buf)-1])
-	c.Assert(l, Equals, uint64(0))
+	assert.Equal(t, uint64(0), l)
 }
 
-func (s *SimpleDbSuite) TestBufFile(c *C) {
+type SimpleDbSuite struct {
+	suite.Suite
+}
+
+func TestSimpleDbSuite(t *testing.T) {
+	suite.Run(t, new(SimpleDbSuite))
+}
+
+func (suite *SimpleDbSuite) SetupTest() {
+	filesys.Fs = filesys.NewMemFs()
+}
+
+func (suite *SimpleDbSuite) TestBufFile() {
 	f := newBuf(filesys.Create("test"))
 	bufAppend(f, []byte("hello "))
 	bufAppend(f, []byte("world"))
 	bufFlush(f)
 	bufAppend(f, []byte("!"))
 	bufClose(f)
-	c.Check(readFile("test"), DeepEquals, []byte("hello world!"))
+	suite.Equal([]byte("hello world!"), readFile("test"))
 }
 
 type maybeValue struct {
@@ -83,18 +87,18 @@ func present(v string) maybeValue {
 	return bytesPresent([]byte(v))
 }
 
-func (s *SimpleDbSuite) TestTableWriter(c *C) {
+func (suite *SimpleDbSuite) TestTableWriter() {
 	w := newTableWriter("table")
 	tablePut(w, 1, []byte("v1"))
 	tablePut(w, 10, []byte("value ten"))
 	tablePut(w, 2, []byte("v two"))
 	t := tableWriterClose(w)
-	c.Check(tblRead(t, 1), DeepEquals, present("v1"))
-	c.Check(tblRead(t, 2), DeepEquals, present("v two"))
-	c.Check(tblRead(t, 10), DeepEquals, present("value ten"))
+	suite.Equal(present("v1"), tblRead(t, 1))
+	suite.Equal(present("v two"), tblRead(t, 2))
+	suite.Equal(present("value ten"), tblRead(t, 10))
 }
 
-func (s *SimpleDbSuite) TestTableWriterLargeValue(c *C) {
+func (suite *SimpleDbSuite) TestTableWriterLargeValue() {
 	w := newTableWriter("table")
 	data := make([]byte, 5000)
 	for i := range data {
@@ -102,10 +106,10 @@ func (s *SimpleDbSuite) TestTableWriterLargeValue(c *C) {
 	}
 	tablePut(w, 1, data)
 	t := tableWriterClose(w)
-	c.Check(tblRead(t, 1), DeepEquals, bytesPresent(data))
+	suite.Equal(bytesPresent(data), tblRead(t, 1))
 }
 
-func (s *SimpleDbSuite) TestTableRecovery(c *C) {
+func (suite *SimpleDbSuite) TestTableRecovery() {
 	w := newTableWriter("table")
 	tablePut(w, 1, []byte("v1"))
 	tablePut(w, 10, []byte("value ten"))
@@ -113,10 +117,10 @@ func (s *SimpleDbSuite) TestTableRecovery(c *C) {
 	tmp := tableWriterClose(w)
 	CloseTable(tmp)
 
-	t := RecoverTable("table")
-	c.Check(tblRead(t, 1), DeepEquals, present("v1"))
-	c.Check(tblRead(t, 2), DeepEquals, present("v two"))
-	c.Check(tblRead(t, 10), DeepEquals, present("value ten"))
+	tbl := RecoverTable("table")
+	suite.Equal(present("v1"), tblRead(tbl, 1))
+	suite.Equal(present("v two"), tblRead(tbl, 2))
+	suite.Equal(present("value ten"), tblRead(tbl, 10))
 }
 
 func dbRead(db Database, k uint64) maybeValue {
@@ -124,60 +128,60 @@ func dbRead(db Database, k uint64) maybeValue {
 	return maybeValue{value: v, present: ok}
 }
 
-func (s *SimpleDbSuite) TestReadWrite(c *C) {
+func (suite *SimpleDbSuite) TestReadWrite() {
 	db := NewDb()
-	c.Check(dbRead(db, 1), DeepEquals, missing)
+	suite.Equal(missing, dbRead(db, 1))
 	Write(db, 1, []byte("v1"))
 	Write(db, 2, []byte("value 2"))
-	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
-	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
+	suite.Equal(present("v1"), dbRead(db, 1))
+	suite.Equal(present("value 2"), dbRead(db, 2))
 }
 
-func (s *SimpleDbSuite) TestCompact(c *C) {
+func (suite *SimpleDbSuite) TestCompact() {
 	db := NewDb()
-	c.Check(dbRead(db, 1), DeepEquals, missing)
+	suite.Equal(missing, dbRead(db, 1))
 	Write(db, 1, []byte("v1"))
 	Compact(db)
 	Compact(db)
 	Write(db, 2, []byte("value 2"))
-	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
-	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
+	suite.Equal(present("v1"), dbRead(db, 1))
+	suite.Equal(present("value 2"), dbRead(db, 2))
 }
 
-func (s *SimpleDbSuite) TestRecover(c *C) {
+func (suite *SimpleDbSuite) TestRecover() {
 	db := NewDb()
-	c.Check(dbRead(db, 1), DeepEquals, missing)
+	suite.Equal(missing, dbRead(db, 1))
 	Write(db, 1, []byte("v1"))
 	Compact(db)
 	Compact(db)
 	Write(db, 2, []byte("value 2"))
 	Shutdown(db)
 	db = Recover()
-	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
-	c.Check(dbRead(db, 2), DeepEquals, missing)
+	suite.Equal(present("v1"), dbRead(db, 1))
+	suite.Equal(missing, dbRead(db, 2))
 }
 
-func (s *SimpleDbSuite) TestClose(c *C) {
+func (suite *SimpleDbSuite) TestClose() {
 	db := NewDb()
-	c.Check(dbRead(db, 1), DeepEquals, missing)
+	suite.Equal(missing, dbRead(db, 1))
 	Write(db, 1, []byte("v1"))
 	Compact(db)
 	Compact(db)
 	Write(db, 2, []byte("value 2"))
 	Close(db)
 	db = Recover()
-	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
-	c.Check(dbRead(db, 2), DeepEquals, present("value 2"))
+	suite.Equal(present("v1"), dbRead(db, 1))
+	suite.Equal(present("value 2"), dbRead(db, 2))
 }
 
-func (s *SimpleDbSuite) TestReadBuffer(c *C) {
+func (suite *SimpleDbSuite) TestReadBuffer() {
 	db := NewDb()
 	Write(db, 1, []byte("v1"))
 	Compact(db)
-	c.Check(dbRead(db, 1), DeepEquals, present("v1"))
+	suite.Equal(present("v1"), dbRead(db, 1))
 }
 
-func (s *SimpleDbSuite) TestReadLargeValue(c *C) {
+func (suite *SimpleDbSuite) TestReadLargeValue() {
 	db := NewDb()
 	data := make([]byte, 5000)
 	for i := range data {
@@ -186,10 +190,10 @@ func (s *SimpleDbSuite) TestReadLargeValue(c *C) {
 	Write(db, 1, data)
 	Compact(db)
 	Compact(db)
-	c.Check(dbRead(db, 1), DeepEquals, bytesPresent(data))
+	suite.Equal(bytesPresent(data), dbRead(db, 1))
 }
 
-func (s *SimpleDbSuite) TestRecoverLargeValue(c *C) {
+func (suite *SimpleDbSuite) TestRecoverLargeValue() {
 	db := NewDb()
 	data := make([]byte, 5000)
 	for i := range data {
@@ -198,5 +202,5 @@ func (s *SimpleDbSuite) TestRecoverLargeValue(c *C) {
 	Write(db, 1, data)
 	Close(db)
 	db = Recover()
-	c.Check(dbRead(db, 1), DeepEquals, bytesPresent(data))
+	suite.Equal(bytesPresent(data), dbRead(db, 1))
 }
