@@ -9,7 +9,7 @@ import (
 )
 
 func readFile(p string) (data []byte) {
-	f := filesys.Open(p)
+	f := filesys.Open("db", p)
 	defer filesys.Close(f)
 	for off := uint64(0); ; off += 4096 {
 		buf := filesys.ReadAt(f, off, 4096)
@@ -55,7 +55,7 @@ func (suite *SimpleDbSuite) SetupTest() {
 }
 
 func (suite *SimpleDbSuite) TestBufFile() {
-	f := newBuf(filesys.Create("test"))
+	f := newBuf(filesys.Create("db", "test"))
 	bufAppend(f, []byte("hello "))
 	bufAppend(f, []byte("world"))
 	bufFlush(f)
