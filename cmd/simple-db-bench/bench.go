@@ -119,7 +119,9 @@ func prepareDb(dir string) simpledb.Database {
 	if err != nil {
 		panic(err)
 	}
-	filesys.Fs = filesys.NewDirFs(dir)
+	fs := filesys.NewDirFs(dir)
+	fs.Mkdir("db")
+	filesys.Fs = fs
 	return simpledb.NewDb()
 }
 
