@@ -55,7 +55,8 @@ func (suite *SimpleDbSuite) SetupTest() {
 }
 
 func (suite *SimpleDbSuite) TestBufFile() {
-	f := newBuf(filesys.Create("db", "test"))
+	testFile, _ := filesys.Create("db", "test")
+	f := newBuf(testFile)
 	bufAppend(f, []byte("hello "))
 	bufAppend(f, []byte("world"))
 	bufFlush(f)
