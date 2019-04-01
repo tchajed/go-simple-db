@@ -52,6 +52,7 @@ func TestSimpleDbSuite(t *testing.T) {
 
 func (suite *SimpleDbSuite) SetupTest() {
 	filesys.Fs = filesys.NewMemFs()
+	filesys.Fs.Mkdir("db")
 }
 
 func (suite *SimpleDbSuite) TestBufFile() {
