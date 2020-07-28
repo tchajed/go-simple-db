@@ -1,10 +1,14 @@
 dist: xenial
 language: go
-go:
-- "1.13.x"
-- "1.12.x"
-- "1.11.x"
-- "1.10.x"
+jobs:
+  include:
+    - go: "1.14.x"
+    - go: "1.13.x"
+    - go: "1.12.x"
+      env:
+        # needed to enable module support because Travis checks the project out
+        # under $GOPATH
+        GO111MODULE=on
 
 script:
   - go test -v ./...
